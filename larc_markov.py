@@ -6,6 +6,36 @@ import urllib.request
 from bs4 import BeautifulSoup
 import re
 import MeCab
+from requests_oauthlib import OAuth1Session
+
+# OAuth 認証の初期化
+def initialize():
+    global twitter
+
+    with open("secret.json") as f:
+        secret_json = json.load(f)
+
+    oath = OAuth1Session(secret_json["access_token"],
+                            secret_json["access_token_secret"],
+                            secret_json["consumer_key"],
+                            secret_json["consumer_secret"])
+    return oath
+
+# ツイートする処理
+def tweet(oath, tweet_word):
+    url = 'https://api.twitter.com/1.1/statuses/update.json'
+
+
+    payload = {'status': tweet_word}
+
+    res = oath.post(url, params = payload)
+
+    if res.status_code != 200:
+        print ("Error code: {0}". format(res.status_code))
+        return None
+
+    return res.status_code
+
 
 # 歌詞サイトをダウンロード(shift-jis)する関数
 def url_access(url):
@@ -76,21 +106,25 @@ def create_dic():
         w1 =  word
     #print (word_dic)
 
+    word_count = 0
+
     # マルコフ連鎖により自動生成した歌詞を出力
     w1 = random.choice(list(word_dic.keys()))
 
+    sentence = ""
     for i in range(0, 10):
         count = 0
-        sentence = ""
         while count < 10:
             tmp = random.choice(word_dic[w1])
-            if re.search(r'^[a-zA-Z]*', tmp).end() != 0:
+            if re.search(r'^[a-zA-Z\d]*', tmp).end() != 0: # 英語の場合
                 sentence += " " + tmp + " "
             else:
                 sentence += tmp
             w1 = tmp
             count += 1
-        print (sentence) 
+    lyrics =  sentence[0:100] # 138文字分切り取り，出力
+    #print (test)
+    return lyrics
 
 # 2重マルコフ連鎖の場合有効にする。
 """
@@ -120,7 +154,12 @@ def create_dic():
         print (sentence + "\n") 
 """
 
-if __name__ == "main":
+def main():
     #get_lyrics() # 歌詞サイトへアクセスし，歌詞を取得
     #extract_lyrics() # 歌詞を抽出し，ファイルへ書き込み
-    create_dic() # マルコフ連鎖の辞書を作成し，適当な歌詞を出力
+    oath = initialize()
+    tweet_word = create_dic() # マルコフ連鎖の辞書を作成し，適当な歌詞を出力
+    print(tweet(oath, tweet_word))
+
+if __name__ == '__main__':
+    main()
